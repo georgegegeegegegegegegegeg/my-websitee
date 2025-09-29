@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sunset Bay Hotel — Book & Pay</title>
+  <style>
+    /* Simple modern styles */
+    :root{--accent:#0b6efd;--muted:#666;}
+    body{font-family:Inter,system-ui,Segoe UI,Helvetica,Arial; margin:0; background:#f6f8fb;}
+    header{background:white;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(15,20,30,0.05)}
+    h1{margin:0;font-size:20px}
+    main{max-width:980px;margin:28px auto;padding:20px}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+    .card{background:white;border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(12,15,20,0.04)}
+    .room{display:flex;gap:12px;align-items:center}
+    .room img{width:140px;height:100px;object-fit:cover;border-radius:8px}
+    label{display:block;margin-top:10px;color:var(--muted);font-size:14px}
+    input[type=text], input[type=tel], input[type=number] {width:100%;padding:10px;margin-top:6px;border:1px solid #e6e9ee;border-radius:8px}
+    button{background:var(--accent);color:white;padding:10px 14px;border-radius:10px;border:0;cursor:pointer}
+    .muted{color:var(--muted);font-size:13px}
+    .status{margin-top:12px;padding:10px;border-radius:8px;background:#fffbe6;border:1px solid #ffeba8}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sunset Bay Hotel</h1>
+    <div class="muted">Secure payments via M-PESA • Safe & fast</div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="card">
+        <h2>Deluxe Room — KES 4,500 / night</h2>
+        <div class="room" style="margin-top:8px">
+          <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=9ad5e1a02a9e3c96e2fe0aa36b6a5f03" alt="room">
+          <div>
+            <p class="muted">King bed • Sea view • Breakfast included</p>
+            <p style="margin-top:12px"><strong>Available</strong></p>
+          </div>
+        </div>
+
+        <form id="bookingForm" style="margin-top:16px">
+          <label>Full name
+            <input id="name" type="text" required placeholder="Jane Doe"/>
+          </label>
+          <label>Phone (format: 2547XXXXXXXX)
+            <input id="phone" type="tel" required placeholder="254700000000"/>
+          </label>
+          <label>Nights
+            <input id="nights" type="number" min="1" value="1"/>
+          </label>
+
+          <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+            <button id="payBtn" type="button">Pay with M-PESA</button>
+            <div id="paying" class="muted" style="display:none">Processing...</div>
+          </div>
+
+          <div id="status" style="margin-top:12px"></div>
+        </form>
+      </section>
+
+      <aside class="card">
+        <h3>Your booking</h3>
+        <p class="muted">Room: Deluxe</p>
+        <p>Price per night: <strong id="price">4,500</strong> KES</p>
+        <p class="muted">You will receive a prompt on your phone to complete payment.</p>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const payBtn = document.getElementById('payBtn');
+    const statusDiv = document.getElementById('status');
+    const payingEl = document.getElementById('paying');
+
+    payBtn.addEventListener('click', async () => {
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const nights = Number(document.getElementById('nights').value) || 1;
+      if (!name || !phone) { statusDiv.innerHTML = '<div class="status">Please complete name & phone.</div>'; return; }
+
+      const amount = 4500 * nights;
+      statusDiv.innerHTML = '';
+      payingEl.style.display = 'inline';
+      payBtn.disabled = true;
+
+      try {
+        const res = await fetch('/stkpush', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({amount, phone, accountReference: `BOOK-${Date.now()}`, description: `Booking for ${name}`})
+        });
+        const data = await res.json();
+        payingEl.style.display = 'none';
+        payBtn.disabled = false;
+        if (res.ok) {
+          statusDiv.innerHTML = `<div class="status">STK Push initiated: check phone. TransactionRequestId: <code>${data.CheckoutRequestID || data.requestId || '—'}</code></div>`;
+        } else {
+          statusDiv.innerHTML = `<div class="status">Error initiating payment: ${data.error || JSON.stringify(data)}</div>`;
+        }
+      } catch (err) {
+        payingEl.style.display = 'none';
+        payBtn.disabled = false;
+        statusDiv.innerHTML = `<div class="status">Network error: ${err.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
